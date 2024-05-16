@@ -1,19 +1,10 @@
-<h1>機器一覧</h1>
+<p>ユーザー用ページ:</p>
+<ul>
+  <li><%= link_to '機器一覧', appliances_path %></li>
+</ul>
 
-<table class="table table-chocomint">
-  <thead>
-    <tr>
-      <th>名称</th>
-      <th>型番</th>
-      <th>購入日</th>
-    </tr>
-  </thead>
-  <tbody>
-  <% @appliances.each do |appliance| %>
-  <tr>
-    <td><%= appliance.name %></td>
-    <td><%= appliance.model_number %></td>
-    <td><%= appliance.created_at %></td>
-  </tr>
-  <% end %>
-</table>
+<p>管理者用ページ:</p>
+<ul>
+  <li><%= link_to 'ユーザ管理', admin_users_path %></li>
+  <li><%= link_to '機器管理', admin_appliances_path %></li>
+</ul>

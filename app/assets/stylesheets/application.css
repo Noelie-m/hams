@@ -1,32 +1,30 @@
-/*
- * This is a manifest file that'll be compiled into application.css, which will include all the files
- * listed below.
- *
- * Any CSS (and SCSS, if configured) file within this directory, lib/assets/stylesheets, or any plugin's
- * vendor/assets/stylesheets directory can be referenced here using a relative path.
- *
- * You're free to add application-wide styles to this file and they'll appear at the bottom of the
- * compiled file so the styles you add here take precedence over styles defined in any other CSS
- * files in this directory. Styles in this file should be added after the last require_* statement.
- * It is generally better to create a new file per style scope.
- *
- */
-
- @import "bootstrap";
- 
- body {
+body {
   background-color: #f8f9fa;
 }
-.table-chocomint thead th {
-  background-color: #e0f7f5; /* 非常に薄いミントグリーン */
-  color: #3a3a3a; /* 暗いグレー */
+.table-user thead th {
+  background-color: #e0f7f5;
+  color: #3a3a3a;
 }
-.table-chocomint tbody tr:nth-child(odd) {
-  background-color: #f0fbf9; /* さらに淡いミントグリーン */
+.table-user tbody tr:nth-child(odd) {
+  background-color: #f0fbf9;
 }
-.table-chocomint tbody tr:nth-child(even) {
-  background-color: #faf6e8; /* さらに淡いブラウン */
+.table-user tbody tr:nth-child(even) {
+  background-color: #faf6e8;
 }
-.table-chocomint tbody td {
-  color: #3a3a3a; /* 暗いグレー */
+.table-user tbody td {
+  color: #3a3a3a;
+}
+
+.table-admin thead th {
+  background-color: #fde4e1;
+  color: #3a3a3a;
+}
+.table-admin tbody tr:nth-child(odd) {
+  background-color: #fff5f4;
+}
+.table-admin tbody tr:nth-child(even) {
+  background-color: #fffcf7;
+}
+.table-admin tbody td {
+  color: #3a3a3a;
 }

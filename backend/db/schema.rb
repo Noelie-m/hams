@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2024_05_08_033250) do
+ActiveRecord::Schema[7.1].define(version: 2025_12_21_000000) do
   create_table "appliances", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", comment: "機器", force: :cascade do |t|
     t.string "name", null: false, comment: "名称"
     t.string "model_number", comment: "型番"
@@ -20,6 +20,8 @@ ActiveRecord::Schema[7.1].define(version: 2024_05_08_033250) do
     t.string "updated_by", null: false, comment: "更新者"
     t.datetime "created_at", precision: nil, null: false, comment: "作成日"
     t.datetime "updated_at", precision: nil, null: false, comment: "更新日"
+    t.integer "price", comment: "参考価格"
+    t.text "memo", comment: "メモ"
   end
 
   create_table "manuals", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", comment: "説明書", force: :cascade do |t|
@@ -33,7 +35,7 @@ ActiveRecord::Schema[7.1].define(version: 2024_05_08_033250) do
     t.index ["appliance_id"], name: "index_manuals_on_appliance_id"
   end
 
-  create_table "users", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", comment: "説明書", force: :cascade do |t|
+  create_table "users", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", comment: "ユーザー", force: :cascade do |t|
     t.string "name", null: false, comment: "名前"
     t.integer "privilege", null: false, comment: "権限"
     t.string "created_by", null: false, comment: "作成者"

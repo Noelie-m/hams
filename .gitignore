@@ -5,21 +5,5 @@
 .env
 .env.local
 
-# Backend (Rails)
-backend/log/*
-backend/tmp/*
-backend/storage/*
-backend/public/assets
-backend/config/master.key
-backend/.bundle/
-backend/vendor/
-
-# Frontend (Next.js)
-frontend/node_modules/
-frontend/.next/
-frontend/out/
-frontend/.vercel
-frontend/*.tsbuildinfo
-
-# Docker
-.docker_data/
+# Data files (optional - コミットしてもOK)
+# data.json

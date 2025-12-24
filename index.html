@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAMS - 家電管理システム</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏠 HAMS - 家電管理システム</h1>
+            <div class="file-controls">
+                <button id="loadFileBtn" class="btn btn-primary">📂 JSONファイルを開く</button>
+                <button id="saveFileBtn" class="btn btn-success" disabled>💾 保存</button>
+                <button id="createNewBtn" class="btn btn-secondary">📄 新規作成</button>
+            </div>
+        </header>
+
+        <main>
+            <div id="noFileMessage" class="message">
+                <p>JSONファイルを開くか、新規作成してください。</p>
+            </div>
+
+            <div id="appContent" style="display: none;">
+                <div class="add-section">
+                    <h2>家電を追加</h2>
+                    <form id="applianceForm">
+                        <input type="hidden" id="editId">
+                        <div class="form-group">
+                            <label>名称 *</label>
+                            <input type="text" id="name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>型番</label>
+                            <input type="text" id="modelNumber">
+                        </div>
+                        <div class="form-group">
+                            <label>購入日</label>
+                            <input type="date" id="purchasedDate">
+                        </div>
+                        <div class="form-group">
+                            <label>破棄日</label>
+                            <input type="date" id="disposedDate">
+                        </div>
+                        <div class="form-group">
+                            <label>参考価格</label>
+                            <input type="number" id="price">
+                        </div>
+                        <div class="form-group">
+                            <label>メモ</label>
+                            <textarea id="memo" rows="3"></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary" id="submitBtn">追加</button>
+                            <button type="button" class="btn btn-secondary" id="cancelBtn" style="display: none;">キャンセル</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="list-section">
+                    <h2>家電一覧</h2>
+                    <div id="applianceList"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

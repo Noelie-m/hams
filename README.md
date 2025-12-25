@@ -2,93 +2,86 @@
 
 家中の家電を管理するためのシンプルなWebアプリケーションです。
 
+![HAMS スクリーンショット](screenshot.png)
+
 ## 特徴
 
 - **完全クライアントサイド**: サーバー不要、ブラウザだけで動作
-- **JSONファイル管理**: データはJSONファイルとして保存・読み込み
-- **File System Access API**: ブラウザから直接ファイルを読み書き
-- **シンプル構成**: HTML + CSS + JavaScriptのみ
+- **GitHub Gist 同期**: クラウドに自動保存、複数デバイスで共有可能
+- **自動バックアップ**: localStorageにも保存、オフラインでも動作
+- **コンパクト表示**: 1行に全情報を表示、一覧性が高い
+- **検索・フィルター**: 名称・型番での検索、ステータスでの絞り込み
+- **モダンUI**: ダークモード、アニメーション、レスポンシブデザイン
 
-## 構成
+## ファイル構成
 
 ```
 hams/
 ├── index.html     # メインUI
 ├── app.js         # アプリケーションロジック
-└── style.css      # スタイル
+├── style.css      # スタイル
+├── config.js      # 設定ファイル（.gitignore対象）
+└── README.md
 ```
 
-## 必要な環境
+## セットアップ
 
-- **ブラウザ**: Chrome、Edge、Opera (File System Access API対応)
-- **サーバー**: 不要（静的HTMLとして開くだけ）
+### 1. config.js を作成
+
+```javascript
+const CONFIG = {
+    GITHUB_TOKEN: '',  // GitHub Personal Access Token
+    GIST_ID: ''        // Gist ID（初回は空でOK）
+};
+```
+
+### 2. GitHub Personal Access Token を取得（オプション）
+
+Gist同期を使う場合：
+
+1. https://github.com/settings/tokens にアクセス
+2. 「Generate new token (classic)」をクリック
+3. `gist` スコープにチェック
+4. トークンを生成して `config.js` に設定
+
+### 3. ブラウザで開く
+
+```bash
+# ダブルクリックで開くか、コマンドラインから
+start index.html       # Windows
+open index.html        # macOS
+xdg-open index.html    # Linux
+```
 
 ## 使い方
 
-### 1. ファイルを開く
+| 操作 | 説明 |
+|------|------|
+| ＋ 追加 | 新しい家電を登録 |
+| 編集 | 既存の家電情報を編集（メモもここで確認） |
+| 削除 | 破棄済みの家電を削除 |
+| 検索 | 名称・型番で検索 |
+| フィルター | 使用中/破棄済みで絞り込み |
 
-ブラウザで `index.html` を開きます。
+## データ保存
 
-```bash
-# Chromeで開く例
-open index.html
-# または
-google-chrome index.html
-```
+| モード | ステータス表示 | 説明 |
+|--------|--------------|------|
+| ローカル | 💾 ローカル保存 | トークン未設定時、localStorageのみ |
+| Gist同期 | ☁️ Gist同期中 🔗 | GitHub Gistに自動保存（リンクでGist確認可能） |
 
-### 2. データファイルを用意
-
-初回は「新規作成」ボタンをクリックして、`data.json` を作成します。
-
-または、既存の `data.json` を「JSONファイルを開く」で読み込みます。
-
-### データ構造
-
-`data.json` の形式：
-
-```json
-{
-  "appliances": [
-    {
-      "id": 1,
-      "name": "冷蔵庫",
-      "modelNumber": "ABC-123",
-      "purchasedDate": "2023-01-15",
-      "disposedDate": null,
-      "price": 80000,
-      "memo": "省エネタイプ",
-      "createdAt": "2024-01-01T00:00:00.000Z",
-      "updatedAt": "2024-01-01T00:00:00.000Z"
-    }
-  ],
-  "nextId": 2
-}
-```
-
-## 機能
+## 機能一覧
 
 - ✅ 家電の追加・編集・削除
-- ✅ JSONファイルの読み込み・保存
-- ✅ 名称、型番、購入日、破棄日、参考価格、メモの管理
+- ✅ 名称・型番での検索
+- ✅ ステータス（使用中/破棄済み）フィルター
+- ✅ ソート（名前順/購入日順/価格順/登録順）
+- ✅ 統計表示（登録数/使用中/破棄済み/総額）
+- ✅ GitHub Gist 自動同期
+- ✅ localStorage バックアップ
 - ✅ レスポンシブデザイン
+- ✅ ダークモード
 
-## 開発の経緯
+## ライセンス
 
-当初はRails + Next.js + MySQL + Dockerという本格的な構成でしたが、機能の規模に対して過剰だったため、完全にシンプル化しました。
-
-**Before**: Rails API + Next.js + MySQL + Docker Compose
-**After**: HTML + CSS + JavaScript (File System Access API)
-
-## メリット
-
-1. **セットアップ不要**: ファイルを開くだけで動作
-2. **依存関係ゼロ**: npm install、Docker、データベース不要
-3. **軽量**: 合計数百行のコード
-4. **データ移植性**: JSONファイルで簡単にバックアップ・共有可能
-5. **カスタマイズ容易**: 純粋なJavaScriptなので改造が簡単
-
-## 注意点
-
-- File System Access APIはChrome系ブラウザのみ対応（Safari未対応）
-- データは選択したJSONファイルに保存されます
-- 複数人での同時編集には非対応
+MIT

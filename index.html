@@ -1,71 +1,137 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="家中の家電を管理するためのシンプルなWebアプリケーション">
+    <meta name="theme-color" content="#667eea">
     <title>HAMS - 家電管理システム</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="container">
         <header>
-            <h1>🏠 HAMS - 家電管理システム</h1>
-            <div class="file-controls">
-                <button id="loadFileBtn" class="btn btn-primary">📂 JSONファイルを開く</button>
-                <button id="saveFileBtn" class="btn btn-success" disabled>💾 保存</button>
-                <button id="createNewBtn" class="btn btn-secondary">📄 新規作成</button>
+            <div class="header-content">
+                <h1>🏠 HAMS</h1>
+                <p class="subtitle">Home Appliance Management System</p>
+            </div>
+            <div class="header-actions">
+                <button id="addNewBtn" class="btn btn-primary btn-compact">＋ 追加</button>
+                <div class="sync-status" id="syncStatus">
+                    <span class="sync-icon">⏳</span>
+                    <span class="sync-text">接続中...</span>
+                </div>
             </div>
         </header>
 
         <main>
-            <div id="noFileMessage" class="message">
-                <p>JSONファイルを開くか、新規作成してください。</p>
+            <!-- 統計セクション -->
+            <div class="stats-section">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalCount">0</div>
+                    <div class="stat-label">登録数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="activeCount">0</div>
+                    <div class="stat-label">使用中</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="disposedCount">0</div>
+                    <div class="stat-label">破棄済み</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalPrice">¥0</div>
+                    <div class="stat-label">総額</div>
+                </div>
             </div>
 
-            <div id="appContent" style="display: none;">
-                <div class="add-section">
-                    <h2>家電を追加</h2>
+            <!-- 検索セクション -->
+            <div class="search-section">
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="searchInput" placeholder="検索...">
+                    <button id="clearSearchBtn" class="clear-search" style="display: none;">✕</button>
+                </div>
+                <div class="filter-controls">
+                    <select id="filterStatus">
+                        <option value="all">すべて</option>
+                        <option value="active" selected>使用中</option>
+                        <option value="disposed">破棄済み</option>
+                    </select>
+                    <select id="sortBy">
+                        <option value="name">名前順</option>
+                        <option value="purchasedDate">購入日順</option>
+                        <option value="price">価格順</option>
+                        <option value="createdAt">登録順</option>
+                    </select>
+                </div>
+                <span id="resultCount" class="result-count"></span>
+            </div>
+
+            <!-- フォームモーダル -->
+            <div id="formModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2 id="formTitle">家電を追加</h2>
+                        <button class="modal-close" id="closeModalBtn">✕</button>
+                    </div>
                     <form id="applianceForm">
                         <input type="hidden" id="editId">
-                        <div class="form-group">
-                            <label>名称 *</label>
-                            <input type="text" id="name" required>
-                        </div>
-                        <div class="form-group">
-                            <label>型番</label>
-                            <input type="text" id="modelNumber">
-                        </div>
-                        <div class="form-group">
-                            <label>購入日</label>
-                            <input type="date" id="purchasedDate">
-                        </div>
-                        <div class="form-group">
-                            <label>破棄日</label>
-                            <input type="date" id="disposedDate">
-                        </div>
-                        <div class="form-group">
-                            <label>参考価格</label>
-                            <input type="number" id="price">
-                        </div>
-                        <div class="form-group">
-                            <label>メモ</label>
-                            <textarea id="memo" rows="3"></textarea>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="name">名称 <span class="required">*</span></label>
+                                <input type="text" id="name" required placeholder="例: 冷蔵庫">
+                            </div>
+                            <div class="form-group">
+                                <label for="modelNumber">型番</label>
+                                <input type="text" id="modelNumber" placeholder="例: ABC-123">
+                            </div>
+                            <div class="form-group">
+                                <label for="purchasedDate">購入日</label>
+                                <input type="date" id="purchasedDate">
+                            </div>
+                            <div class="form-group">
+                                <label for="disposedDate">破棄日</label>
+                                <input type="date" id="disposedDate">
+                            </div>
+                            <div class="form-group">
+                                <label for="price">参考価格</label>
+                                <div class="input-with-prefix">
+                                    <span class="input-prefix">¥</span>
+                                    <input type="number" id="price" placeholder="80000">
+                                </div>
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="memo">メモ</label>
+                                <textarea id="memo" rows="3" placeholder="省エネタイプ、保証期間など"></textarea>
+                            </div>
                         </div>
                         <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="cancelBtn">キャンセル</button>
                             <button type="submit" class="btn btn-primary" id="submitBtn">追加</button>
-                            <button type="button" class="btn btn-secondary" id="cancelBtn" style="display: none;">キャンセル</button>
                         </div>
                     </form>
                 </div>
+            </div>
 
-                <div class="list-section">
-                    <h2>家電一覧</h2>
-                    <div id="applianceList"></div>
-                </div>
+            <!-- 家電一覧 -->
+            <div class="list-section">
+                <div id="applianceList"></div>
             </div>
         </main>
+
+        <footer>
+            <p>HAMS - Home Appliance Management System</p>
+        </footer>
     </div>
 
+    <script src="config.js"></script>
     <script src="app.js"></script>
 </body>
+
 </html>

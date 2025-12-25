@@ -5,5 +5,12 @@
 .env
 .env.local
 
-# Data files (optional - コミットしてもOK)
-# data.json
+# Dependencies
+node_modules/
+
+# Build
+.next/
+dist/
+
+# Config (contains secrets)
+config.js

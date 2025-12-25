@@ -1,118 +1,349 @@
-// グローバル変数
-let fileHandle = null;
+// ======================================
+// HAMS - Home Appliance Management System
+// with GitHub Gist Sync
+// ======================================
+
+const GIST_FILENAME = 'hams_data.json';
+const STORAGE_KEY = 'hams_data';
+
 let appliances = [];
 let nextId = 1;
+let gistId = null;
+let isSyncing = false;
 
 // DOM要素
-const loadFileBtn = document.getElementById('loadFileBtn');
-const saveFileBtn = document.getElementById('saveFileBtn');
-const createNewBtn = document.getElementById('createNewBtn');
-const noFileMessage = document.getElementById('noFileMessage');
-const appContent = document.getElementById('appContent');
 const applianceForm = document.getElementById('applianceForm');
 const applianceList = document.getElementById('applianceList');
 const submitBtn = document.getElementById('submitBtn');
 const cancelBtn = document.getElementById('cancelBtn');
+const addNewBtn = document.getElementById('addNewBtn');
+const formModal = document.getElementById('formModal');
+const closeModalBtn = document.getElementById('closeModalBtn');
+const formTitle = document.getElementById('formTitle');
+const searchInput = document.getElementById('searchInput');
+const clearSearchBtn = document.getElementById('clearSearchBtn');
+const filterStatus = document.getElementById('filterStatus');
+const sortBy = document.getElementById('sortBy');
+const syncStatus = document.getElementById('syncStatus');
 
 // イベントリスナー
-loadFileBtn.addEventListener('click', loadFile);
-saveFileBtn.addEventListener('click', saveFile);
-createNewBtn.addEventListener('click', createNewFile);
 applianceForm.addEventListener('submit', handleSubmit);
-cancelBtn.addEventListener('click', cancelEdit);
+cancelBtn.addEventListener('click', closeModal);
+closeModalBtn.addEventListener('click', closeModal);
+addNewBtn.addEventListener('click', () => openModal());
+searchInput.addEventListener('input', handleSearch);
+clearSearchBtn.addEventListener('click', clearSearch);
+filterStatus.addEventListener('change', renderAppliances);
+sortBy.addEventListener('change', renderAppliances);
 
-// ファイルを開く
-async function loadFile() {
+formModal.addEventListener('click', (e) => {
+    if (e.target === formModal) closeModal();
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && formModal.classList.contains('show')) closeModal();
+});
+
+// ======================================
+// 同期ステータス表示
+// ======================================
+
+function setSyncStatus(status, text) {
+    const icons = {
+        loading: '⏳',
+        synced: '☁️',
+        error: '⚠️',
+        offline: '💾'
+    };
+
+    let link = '';
+    if (status === 'synced' && gistId) {
+        link = `<a href="https://gist.github.com/${gistId}" target="_blank" class="sync-link">🔗</a>`;
+    } else if (status === 'synced') {
+        link = `<a href="https://gist.github.com/" target="_blank" class="sync-link">🔗</a>`;
+    }
+
+    syncStatus.innerHTML = `
+        <span class="sync-icon">${icons[status] || '❓'}</span>
+        <span class="sync-text">${text}</span>
+        ${link}
+    `;
+    syncStatus.className = `sync-status sync-${status}`;
+}
+
+// ======================================
+// GitHub Gist API
+// ======================================
+
+function hasGistConfig() {
+    return typeof CONFIG !== 'undefined' && CONFIG.GITHUB_TOKEN;
+}
+
+async function loadFromGist() {
+    if (!hasGistConfig()) {
+        setSyncStatus('offline', 'ローカル保存');
+        return false;
+    }
+
+    setSyncStatus('loading', '読み込み中...');
+
     try {
-        const [handle] = await window.showOpenFilePicker({
-            types: [{
-                description: 'JSON Files',
-                accept: { 'application/json': ['.json'] }
-            }],
-            multiple: false
-        });
+        // Gist IDがあれば直接取得
+        if (CONFIG.GIST_ID) {
+            const res = await fetch(`https://api.github.com/gists/${CONFIG.GIST_ID}`, {
+                headers: { 'Authorization': `token ${CONFIG.GITHUB_TOKEN}` }
+            });
 
-        fileHandle = handle;
-        const file = await handle.getFile();
-        const contents = await file.text();
-        const data = JSON.parse(contents);
+            if (res.ok) {
+                const gist = await res.json();
+                gistId = gist.id;
 
-        appliances = data.appliances || [];
-        nextId = data.nextId || 1;
-
-        showAppContent();
-        renderAppliances();
-        saveFileBtn.disabled = false;
-    } catch (error) {
-        if (error.name !== 'AbortError') {
-            alert('ファイルの読み込みに失敗しました: ' + error.message);
+                if (gist.files[GIST_FILENAME]) {
+                    const data = JSON.parse(gist.files[GIST_FILENAME].content);
+                    appliances = data.appliances || [];
+                    nextId = data.nextId || 1;
+                    saveToLocalStorage(); // バックアップ
+                    setSyncStatus('synced', 'Gist同期中');
+                    return true;
+                }
+            }
         }
-    }
-}
 
-// ファイルを保存
-async function saveFile() {
-    if (!fileHandle) {
-        alert('ファイルが選択されていません');
-        return;
-    }
-
-    try {
-        const writable = await fileHandle.createWritable();
-        const data = {
-            appliances,
-            nextId
-        };
-        await writable.write(JSON.stringify(data, null, 2));
-        await writable.close();
-        alert('保存しました');
-    } catch (error) {
-        alert('保存に失敗しました: ' + error.message);
-    }
-}
-
-// 新規作成
-async function createNewFile() {
-    try {
-        const handle = await window.showSaveFilePicker({
-            suggestedName: 'data.json',
-            types: [{
-                description: 'JSON Files',
-                accept: { 'application/json': ['.json'] }
-            }]
+        // Gist IDがない場合は、既存のGistを検索
+        const res = await fetch('https://api.github.com/gists', {
+            headers: { 'Authorization': `token ${CONFIG.GITHUB_TOKEN}` }
         });
 
-        fileHandle = handle;
+        if (res.ok) {
+            const gists = await res.json();
+            const existing = gists.find(g => g.files[GIST_FILENAME]);
+
+            if (existing) {
+                gistId = existing.id;
+                const data = JSON.parse(existing.files[GIST_FILENAME].content);
+                appliances = data.appliances || [];
+                nextId = data.nextId || 1;
+                saveToLocalStorage();
+                setSyncStatus('synced', 'Gist同期中');
+                console.log('既存のGistを発見:', gistId);
+                return true;
+            }
+        }
+
+        // 既存がなければ新規作成
+        setSyncStatus('synced', 'Gist同期中');
+        return false;
+
+    } catch (error) {
+        console.error('Gist読み込みエラー:', error);
+        setSyncStatus('error', 'Gistエラー');
+        return false;
+    }
+}
+
+async function saveToGist() {
+    if (!hasGistConfig() || isSyncing) return;
+
+    isSyncing = true;
+    setSyncStatus('loading', '保存中...');
+
+    const data = { appliances, nextId };
+    const content = JSON.stringify(data, null, 2);
+
+    try {
+        if (gistId) {
+            // 既存のGistを更新
+            const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `token ${CONFIG.GITHUB_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    files: { [GIST_FILENAME]: { content } }
+                })
+            });
+
+            if (res.ok) {
+                setSyncStatus('synced', 'Gist同期中');
+            } else {
+                throw new Error('Gist更新失敗');
+            }
+        } else {
+            // 新規Gist作成
+            const res = await fetch('https://api.github.com/gists', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `token ${CONFIG.GITHUB_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    description: 'HAMS - Home Appliance Management System Data',
+                    public: false,
+                    files: { [GIST_FILENAME]: { content } }
+                })
+            });
+
+            if (res.ok) {
+                const gist = await res.json();
+                gistId = gist.id;
+                setSyncStatus('synced', 'Gist同期中');
+                console.log('新規Gist作成:', gistId);
+                console.log('config.jsのGIST_IDを更新してください:', gistId);
+                showNotification(`Gist作成完了！ ID: ${gistId}`);
+            } else {
+                throw new Error('Gist作成失敗');
+            }
+        }
+    } catch (error) {
+        console.error('Gist保存エラー:', error);
+        setSyncStatus('error', 'Gist保存エラー');
+    } finally {
+        isSyncing = false;
+    }
+}
+
+// ======================================
+// ローカルストレージ (バックアップ)
+// ======================================
+
+function loadFromLocalStorage() {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            const data = JSON.parse(saved);
+            appliances = data.appliances || [];
+            nextId = data.nextId || 1;
+        }
+    } catch (e) {
         appliances = [];
         nextId = 1;
-
-        const writable = await handle.createWritable();
-        const data = {
-            appliances: [],
-            nextId: 1
-        };
-        await writable.write(JSON.stringify(data, null, 2));
-        await writable.close();
-
-        showAppContent();
-        renderAppliances();
-        saveFileBtn.disabled = false;
-        alert('新しいファイルを作成しました');
-    } catch (error) {
-        if (error.name !== 'AbortError') {
-            alert('ファイルの作成に失敗しました: ' + error.message);
-        }
     }
 }
 
-// アプリコンテンツを表示
-function showAppContent() {
-    noFileMessage.style.display = 'none';
-    appContent.style.display = 'block';
+function saveToLocalStorage() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ appliances, nextId }));
 }
 
-// フォーム送信
-function handleSubmit(e) {
+// ======================================
+// データ管理
+// ======================================
+
+async function loadData() {
+    // まずローカルから読み込み（高速表示のため）
+    loadFromLocalStorage();
+    updateStats();
+    renderAppliances();
+
+    // Gistから読み込み（非同期）
+    const loaded = await loadFromGist();
+    if (loaded) {
+        updateStats();
+        renderAppliances();
+    }
+}
+
+async function saveData() {
+    saveToLocalStorage();
+    await saveToGist();
+}
+
+// ======================================
+// UI
+// ======================================
+
+function openModal(id = null) {
+    resetForm();
+
+    if (id) {
+        const a = appliances.find(x => x.id === id);
+        if (a) {
+            document.getElementById('editId').value = a.id;
+            document.getElementById('name').value = a.name;
+            document.getElementById('modelNumber').value = a.modelNumber || '';
+            document.getElementById('purchasedDate').value = a.purchasedDate || '';
+            document.getElementById('disposedDate').value = a.disposedDate || '';
+            document.getElementById('price').value = a.price || '';
+            document.getElementById('memo').value = a.memo || '';
+            formTitle.textContent = '家電を編集';
+            submitBtn.textContent = '更新';
+        }
+    } else {
+        formTitle.textContent = '家電を追加';
+        submitBtn.textContent = '追加';
+    }
+
+    formModal.classList.add('show');
+    document.getElementById('name').focus();
+}
+
+function closeModal() {
+    formModal.classList.remove('show');
+    resetForm();
+}
+
+function resetForm() {
+    applianceForm.reset();
+    document.getElementById('editId').value = '';
+}
+
+// ======================================
+// 検索・フィルター
+// ======================================
+
+function handleSearch() {
+    clearSearchBtn.style.display = searchInput.value.trim() ? 'block' : 'none';
+    renderAppliances();
+}
+
+function clearSearch() {
+    searchInput.value = '';
+    clearSearchBtn.style.display = 'none';
+    renderAppliances();
+}
+
+function getFilteredAppliances() {
+    let filtered = [...appliances];
+
+    const query = searchInput.value.trim().toLowerCase();
+    if (query) {
+        filtered = filtered.filter(a =>
+            a.name.toLowerCase().includes(query) ||
+            (a.modelNumber && a.modelNumber.toLowerCase().includes(query))
+        );
+    }
+
+    const status = filterStatus.value;
+    if (status === 'active') filtered = filtered.filter(a => !a.disposedDate);
+    else if (status === 'disposed') filtered = filtered.filter(a => a.disposedDate);
+
+    const sort = sortBy.value;
+    filtered.sort((a, b) => {
+        switch (sort) {
+            case 'name': return a.name.localeCompare(b.name, 'ja');
+            case 'purchasedDate':
+                if (!a.purchasedDate && !b.purchasedDate) return 0;
+                if (!a.purchasedDate) return 1;
+                if (!b.purchasedDate) return -1;
+                return new Date(b.purchasedDate) - new Date(a.purchasedDate);
+            case 'price':
+                if (!a.price && !b.price) return 0;
+                if (!a.price) return 1;
+                if (!b.price) return -1;
+                return b.price - a.price;
+            case 'createdAt': return new Date(b.createdAt) - new Date(a.createdAt);
+            default: return 0;
+        }
+    });
+
+    return filtered;
+}
+
+// ======================================
+// フォーム
+// ======================================
+
+async function handleSubmit(e) {
     e.preventDefault();
 
     const editId = document.getElementById('editId').value;
@@ -134,101 +365,86 @@ function handleSubmit(e) {
             appliance.createdAt = appliances[index].createdAt;
             appliances[index] = appliance;
         }
+        showNotification('更新しました');
     } else {
         appliances.push(appliance);
+        showNotification('追加しました');
     }
 
-    resetForm();
+    closeModal();
+    await saveData();
+    updateStats();
     renderAppliances();
-    saveFile();
 }
 
-// 編集
-function editAppliance(id) {
-    const appliance = appliances.find(a => a.id === id);
-    if (!appliance) return;
+function editAppliance(id) { openModal(id); }
 
-    document.getElementById('editId').value = appliance.id;
-    document.getElementById('name').value = appliance.name;
-    document.getElementById('modelNumber').value = appliance.modelNumber || '';
-    document.getElementById('purchasedDate').value = appliance.purchasedDate || '';
-    document.getElementById('disposedDate').value = appliance.disposedDate || '';
-    document.getElementById('price').value = appliance.price || '';
-    document.getElementById('memo').value = appliance.memo || '';
-
-    submitBtn.textContent = '更新';
-    cancelBtn.style.display = 'inline-block';
-
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-// 削除
-function deleteAppliance(id) {
-    if (!confirm('本当に削除しますか？')) return;
-
+async function deleteAppliance(id) {
+    if (!confirm('削除しますか？')) return;
     appliances = appliances.filter(a => a.id !== id);
+    await saveData();
+    updateStats();
     renderAppliances();
-    saveFile();
+    showNotification('削除しました');
 }
 
-// 編集キャンセル
-function cancelEdit() {
-    resetForm();
+// ======================================
+// 統計
+// ======================================
+
+function updateStats() {
+    document.getElementById('totalCount').textContent = appliances.length;
+    document.getElementById('activeCount').textContent = appliances.filter(a => !a.disposedDate).length;
+    document.getElementById('disposedCount').textContent = appliances.filter(a => a.disposedDate).length;
+    document.getElementById('totalPrice').textContent = formatPrice(
+        appliances.filter(a => !a.disposedDate && a.price).reduce((s, a) => s + a.price, 0)
+    );
 }
 
-// フォームリセット
-function resetForm() {
-    applianceForm.reset();
-    document.getElementById('editId').value = '';
-    submitBtn.textContent = '追加';
-    cancelBtn.style.display = 'none';
-}
+// ======================================
+// 一覧表示
+// ======================================
 
-// 家電一覧を表示
 function renderAppliances() {
-    if (appliances.length === 0) {
-        applianceList.innerHTML = '<p style="color: #999; text-align: center;">家電が登録されていません</p>';
+    const filtered = getFilteredAppliances();
+    const resultCount = document.getElementById('resultCount');
+
+    resultCount.textContent = (searchInput.value.trim() || filterStatus.value !== 'all')
+        ? `${filtered.length}件` : '';
+
+    if (filtered.length === 0) {
+        applianceList.innerHTML = `
+            <div class="empty-list">
+                <div class="empty-list-icon">📭</div>
+                <p>${appliances.length === 0 ? '家電が登録されていません' : '検索結果がありません'}</p>
+            </div>`;
         return;
     }
 
-    applianceList.innerHTML = appliances.map(appliance => `
-        <div class="appliance-card">
-            <div class="appliance-header">
-                <div class="appliance-name">${escapeHtml(appliance.name)}</div>
+    applianceList.innerHTML = filtered.map(a => {
+        const disposed = !!a.disposedDate;
+        return `
+        <div class="appliance-card ${disposed ? 'disposed' : ''}">
+            <div class="appliance-row">
+                <span class="appliance-name">${escapeHtml(a.name)}</span>
+                <span class="appliance-status ${disposed ? 'disposed' : 'active'}">${disposed ? '破棄済み' : '使用中'}</span>
+                <span class="appliance-info"><span class="info-label">型番</span> ${escapeHtml(a.modelNumber) || '-'}</span>
+                <span class="appliance-info"><span class="info-label">購入日</span> ${formatDate(a.purchasedDate) || '-'}</span>
+                <span class="appliance-info"><span class="info-label">破棄日</span> ${formatDate(a.disposedDate) || '-'}</span>
+                <span class="appliance-info price">${a.price ? '<span class="info-label">参考価格</span> ' + formatPrice(a.price) : ''}</span>
                 <div class="appliance-actions">
-                    <button class="btn btn-warning" onclick="editAppliance(${appliance.id})">編集</button>
-                    <button class="btn btn-danger" onclick="deleteAppliance(${appliance.id})">削除</button>
+                    <button class="btn btn-warning" onclick="editAppliance(${a.id})">編集</button>
+                    ${disposed ? `<button class="btn btn-danger" onclick="deleteAppliance(${a.id})">削除</button>` : ''}
                 </div>
             </div>
-            <div class="appliance-details">
-                <div class="detail-item">
-                    <span class="detail-label">型番</span>
-                    <span class="detail-value ${!appliance.modelNumber ? 'empty' : ''}">${escapeHtml(appliance.modelNumber) || '未設定'}</span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-label">購入日</span>
-                    <span class="detail-value ${!appliance.purchasedDate ? 'empty' : ''}">${appliance.purchasedDate || '未設定'}</span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-label">破棄日</span>
-                    <span class="detail-value ${!appliance.disposedDate ? 'empty' : ''}">${appliance.disposedDate || '未設定'}</span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-label">参考価格</span>
-                    <span class="detail-value ${!appliance.price ? 'empty' : ''}">${appliance.price ? `¥${appliance.price.toLocaleString()}` : '未設定'}</span>
-                </div>
-                ${appliance.memo ? `
-                <div class="detail-item" style="grid-column: 1 / -1;">
-                    <span class="detail-label">メモ</span>
-                    <span class="detail-value">${escapeHtml(appliance.memo)}</span>
-                </div>
-                ` : ''}
-            </div>
-        </div>
-    `).join('');
+        </div>`;
+    }).join('');
 }
 
-// HTML エスケープ
+// ======================================
+// ユーティリティ
+// ======================================
+
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -236,7 +452,43 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// File System Access API サポートチェック
-if (!('showOpenFilePicker' in window)) {
-    alert('このブラウザはFile System Access APIに対応していません。Chrome、Edge、Operaの最新版をご利用ください。');
+function formatDate(dateStr) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
 }
+
+function formatPrice(price) {
+    return price ? '¥' + price.toLocaleString() : '¥0';
+}
+
+function showNotification(message) {
+    const n = document.createElement('div');
+    n.style.cssText = `
+        position: fixed; bottom: 20px; right: 20px; padding: 16px 24px;
+        background: linear-gradient(135deg, #11998e, #38ef7d);
+        color: white; border-radius: 12px; font-size: 14px; font-weight: 500;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 2000;
+        animation: slideIn 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+    `;
+    n.textContent = message;
+
+    if (!document.getElementById('notif-style')) {
+        const s = document.createElement('style');
+        s.id = 'notif-style';
+        s.textContent = `
+            @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+            @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+        `;
+        document.head.appendChild(s);
+    }
+
+    document.body.appendChild(n);
+    setTimeout(() => n.remove(), 3000);
+}
+
+// ======================================
+// 初期化
+// ======================================
+
+loadData();
